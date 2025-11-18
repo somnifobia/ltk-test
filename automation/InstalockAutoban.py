@@ -9,6 +9,8 @@ class InstalockAutoban:
         self.champ_dict = {}
         self.instalock_enabled = False
         self.instalock_champion = "None"
+        self.instalock_backup_2 = "None"  # 2º pick backup
+        self.instalock_backup_3 = "None"  # 3º pick backup
         self.auto_ban_enabled = False
         self.auto_ban_champion = "None"
         self.rengar = Rengar()
@@ -80,6 +82,75 @@ class InstalockAutoban:
         partial = partial_name.lower().strip()
         suggestions = [name.title() for name in self.champ_dict.keys() if partial in name]
         return suggestions[:5]
+    
+    def is_champion_banned(self, champion_id):
+        """Verifica se um campeão está banido na sessão atual"""
+        try:
+            response = self.rengar.lcu_request("GET", "/lol-champ-select/v1/session", "")
+            if response.status_code == 200:
+                session_data = response.json()
+                
+                # Verifica em todas as ações de ban
+                for actions in session_data.get("actions", []):
+                    if isinstance(actions, list):
+                        for action in actions:
+                            if action.get("type") == "ban" and action.get("completed"):
+                                if action.get("championId") == champion_id:
+                                    return True
+                
+                # Verifica bans no objeto bans (se existir)
+                bans = session_data.get("bans", {})
+                if isinstance(bans, dict):
+                    for team_bans in bans.values():
+                        if isinstance(team_bans, list):
+                            for ban in team_bans:
+                                if ban == champion_id:
+                                    return True
+            
+            return False
+        except:
+            return False
+
+    def get_available_champion(self):
+            """
+            Retorna o primeiro campeão disponível (não banido) da lista:
+            1º pick -> 2º pick backup -> 3º pick backup -> Nenhum (escolha manual)
+            """
+            # Se é random, retorna um campeão aleatório
+            if self.instalock_champion == "Random":
+                if self.champ_dict:
+                    return random.choice(list(self.champ_dict.values()))
+                return -1
+            
+            # Tenta o 1º pick
+            champion_id = self.champ_name_to_id(self.instalock_champion)
+            if champion_id != -1 and not self.is_champion_banned(champion_id):
+                print(f"✓ Picking 1st choice: {self.instalock_champion}")
+                return champion_id
+            elif champion_id != -1:
+                print(f"⚠️  1st choice {self.instalock_champion} is BANNED")
+            
+            # Tenta o 2º pick backup
+            if self.instalock_backup_2 != "None":
+                backup2_id = self.champ_name_to_id(self.instalock_backup_2)
+                if backup2_id != -1 and not self.is_champion_banned(backup2_id):
+                    print(f"✓ Picking 2nd choice (backup): {self.instalock_backup_2}")
+                    return backup2_id
+                elif backup2_id != -1:
+                    print(f"⚠️  2nd choice {self.instalock_backup_2} is BANNED")
+            
+            # Tenta o 3º pick backup
+            if self.instalock_backup_3 != "None":
+                backup3_id = self.champ_name_to_id(self.instalock_backup_3)
+                if backup3_id != -1 and not self.is_champion_banned(backup3_id):
+                    print(f"✓ Picking 3rd choice (backup): {self.instalock_backup_3}")
+                    return backup3_id
+                elif backup3_id != -1:
+                    print(f"⚠️  3rd choice {self.instalock_backup_3} is BANNED")
+            
+            # Se todos estão banidos, retorna -1 (não escolhe nada - escolha manual)
+            print("🚫 All your champions are banned! Please pick manually.")
+            return -1
 
     def set_instalock_champion(self, champion_name):
         """Define o campeão para instalock"""
@@ -116,6 +187,48 @@ class InstalockAutoban:
                     self.instalock_champion = correct_name
                     self.instalock_enabled = True
                     return True
+    
+    def set_instalock_backup_2(self, champion_name):
+        """Define o 2º campeão backup para instalock"""
+        champion_name = champion_name.strip()
+        
+        if champion_name == "99" or champion_name.lower() == "disable" or champion_name.lower() == "none":
+            self.instalock_backup_2 = "None"
+            print("✓ 2nd backup cleared")
+            return True
+        else:
+            champ_id = self.champ_name_to_id(champion_name)
+            if champ_id == -1:
+                suggestions = self.get_champion_suggestions(champion_name)
+                if suggestions:
+                    print(f"💡 Did you mean: {', '.join(suggestions)}?")
+                return False
+            else:
+                correct_name = next((name for name in self.champ_dict.keys() if name == champion_name.lower()), champion_name.lower())
+                self.instalock_backup_2 = correct_name
+                print(f"✓ 2nd backup set: {correct_name}")
+                return True
+    
+    def set_instalock_backup_3(self, champion_name):
+        """Define o 3º campeão backup para instalock"""
+        champion_name = champion_name.strip()
+        
+        if champion_name == "99" or champion_name.lower() == "disable" or champion_name.lower() == "none":
+            self.instalock_backup_3 = "None"
+            print("✓ 3rd backup cleared")
+            return True
+        else:
+            champ_id = self.champ_name_to_id(champion_name)
+            if champ_id == -1:
+                suggestions = self.get_champion_suggestions(champion_name)
+                if suggestions:
+                    print(f"💡 Did you mean: {', '.join(suggestions)}?")
+                return False
+            else:
+                correct_name = next((name for name in self.champ_dict.keys() if name == champion_name.lower()), champion_name.lower())
+                self.instalock_backup_3 = correct_name
+                print(f"✓ 3rd backup set: {correct_name}")
+                return True
 
     def set_auto_ban_champion(self, champion_name):
         """Define o campeão para auto ban"""
@@ -188,17 +301,9 @@ class InstalockAutoban:
                         if action.get("completed", False) or action_id == last_action_id:
                             continue
                         
-                        # INSTALOCK - Pick de campeão
+                        # INSTALOCK - Pick de campeão (com sistema de backup)
                         if self.instalock_enabled and action.get("type") == "pick" and action.get("isInProgress", False):
-                            
-                            if self.instalock_champion == "Random":
-                                if self.champ_dict:
-                                    instalock_champs = list(self.champ_dict.items())
-                                    champion_id = random.choice(instalock_champs)[1]
-                                else:
-                                    continue
-                            else:
-                                champion_id = self.champ_name_to_id(self.instalock_champion)
+                            champion_id = self.get_available_champion()
 
                             if champion_id != -1:
                                 try:
@@ -210,8 +315,9 @@ class InstalockAutoban:
                                     
                                     if patch_resp.status_code in [204, 200]:
                                         last_action_id = action_id
-                                except:
-                                    pass
+                                        print(f"✓ Champion picked successfully! (ID: {champion_id})")
+                                except Exception as e:
+                                    print(f"⚠️  Error picking champion: {e}")
                         
                         # AUTO BAN - Ban de campeão
                         elif self.auto_ban_enabled and action.get("type") == "ban" and action.get("isInProgress", False):
@@ -227,12 +333,13 @@ class InstalockAutoban:
                                     
                                     if patch_resp.status_code in [204, 200]:
                                         last_action_id = action_id
-                                except:
-                                    pass
+                                        print(f"✓ Champion banned successfully! ({self.auto_ban_champion})")
+                                except Exception as e:
+                                    print(f"⚠️  Error banning champion: {e}")
 
                 time.sleep(0.2)
                 
-            except:
+            except Exception as e:
                 time.sleep(0.5)
 
     def toggle_instalock(self):
@@ -258,3 +365,18 @@ class InstalockAutoban:
     def stop(self):
         """Para o monitoramento"""
         self.is_running = False
+    
+    def get_instalock_status(self):
+        """Retorna o status completo do instalock com backups"""
+        status = f"{self.instalock_champion}"
+        
+        backups = []
+        if self.instalock_backup_2 != "None":
+            backups.append(f"2nd: {self.instalock_backup_2}")
+        if self.instalock_backup_3 != "None":
+            backups.append(f"3rd: {self.instalock_backup_3}")
+        
+        if backups:
+            status += f" ({', '.join(backups)})"
+        
+        return status

@@ -155,12 +155,11 @@ class AboutView:
         ).pack(anchor="w", pady=(0, 10))
         
         features_list = [
-            ("🔒 Instalock", "Instant champion selection"),
-            ("⛔ Auto Ban", "Automatic champion banning"),
+            ("🔒 Instalock", "Instant champion selection with 3 backups"),
+            ("⛔ Auto Ban", "Automatic champion banning with 3 backups"),
             ("✓ Auto Accept", "Auto-accept queue matches"),
             ("💬 Chat Toggle", "Enable/disable in-game chat"),
             ("📊 Lobby Reveal", "Open Porofessor analysis"),
-            ("🚀 Dodge Queue", "Quick queue dodging"),
             ("🎨 Theme Selector", "Manage and import themes")
         ]
         
@@ -174,7 +173,7 @@ class AboutView:
                 font=("Consolas", 11, "bold"),
                 text_color=self.colors['primary'],
                 anchor="w",
-                width=120
+                width=140
             ).pack(side="left")
             
             ctk.CTkLabel(

@@ -5,30 +5,39 @@ from ui.components import ActionCard, FeatureCard
 
 
 class HomeView:
+    """View principal - Dashboard"""
+    
     def __init__(self, colors, theme):
         self.colors = colors
         self.theme = theme
     
     def create(self, parent, app):
+        """Cria a view home"""
         app.ui_manager.add_title("⚡ DASHBOARD")
         
         desc = ctk.CTkLabel(
             app.ui_manager.scroll_area,
-            text="Quick access to all features",
+            text="Quick access to all features with backup system",
             font=self.theme['fonts']['small'],
             text_color=self.colors['text_secondary']
         )
         desc.pack(anchor="w", pady=(0, 20))
         
+        # Container com 2 colunas
         grid_container = ctk.CTkFrame(app.ui_manager.scroll_area, fg_color="transparent")
         grid_container.pack(fill="both", expand=True)
         grid_container.columnconfigure(0, weight=1)
         grid_container.columnconfigure(1, weight=1)
         
+        # Criar colunas
         self._create_champion_column(grid_container, app)
         self._create_actions_column(grid_container, app)
+        
+        # Restaurar ícones após criar cards
+        app.after(50, lambda: self._restore_champion_icons(app))
     
     def _create_champion_column(self, parent, app):
+        """Cria coluna de automação de campeões"""
         champ_frame = ctk.CTkFrame(parent, fg_color="transparent")
         champ_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
@@ -39,10 +48,14 @@ class HomeView:
             text_color=self.colors['primary']
         ).pack(anchor="w", pady=(0, 10))
         
+        # Montar descrição com backups
+        instalock_desc = self._get_instalock_description(app)
+        
+        # Instalock Card
         instalock_card = FeatureCard(
             champ_frame,
             "🔒 INSTALOCK",
-            f"Selected: {app.instalock_champion}" if app.instalock_champion else "No champion selected",
+            instalock_desc,
             self.colors['primary'],
             app.toggle_instalock,
             app.open_instalock_hub,
@@ -53,10 +66,12 @@ class HomeView:
         )
         app.ui_manager.add_feature_card(instalock_card)
         
+        # Auto Ban Card
+        autoban_desc = f"Selected: {app.autoban_champion}" if app.autoban_champion else "No champion selected"
         autoban_card = FeatureCard(
             champ_frame,
             "⛔ AUTO BAN",
-            f"Selected: {app.autoban_champion}" if app.autoban_champion else "No champion selected",
+            autoban_desc,
             self.colors['secondary'],
             app.toggle_autoban,
             app.open_autoban_hub,
@@ -66,8 +81,11 @@ class HomeView:
             show_icon=True
         )
         app.ui_manager.add_feature_card(autoban_card)
+        
+
     
     def _create_actions_column(self, parent, app):
+        """Cria coluna de ações rápidas"""
         quick_frame = ctk.CTkFrame(parent, fg_color="transparent")
         quick_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         
@@ -78,9 +96,10 @@ class HomeView:
             text_color=self.colors['primary']
         ).pack(anchor="w", pady=(0, 10))
         
+        # Auto Accept
         auto_accept_card = FeatureCard(
             quick_frame,
-            "✔ AUTO ACCEPT",
+            "✓ AUTO ACCEPT",
             "Accept matches automatically",
             self.colors['success'],
             app.toggle_auto_accept,
@@ -92,6 +111,7 @@ class HomeView:
         )
         app.ui_manager.add_feature_card(auto_accept_card)
         
+        # Chat Toggle
         chat_card = ActionCard(
             quick_frame,
             "💬 CHAT TOGGLE",
@@ -103,6 +123,7 @@ class HomeView:
         )
         app.ui_manager.add_action_card(chat_card)
         
+        # Lobby Reveal
         lobby_card = ActionCard(
             quick_frame,
             "📊 LOBBY REVEAL",
@@ -113,17 +134,51 @@ class HomeView:
             self.theme
         )
         app.ui_manager.add_action_card(lobby_card)
+    
+    def _get_instalock_description(self, app):
+        """Retorna descrição formatada do instalock com backups"""
+        if not app.instalock_champion:
+            return "No champion selected"
         
-        dodge_card = ActionCard(
-            quick_frame,
-            "🚀 DODGE QUEUE",
-            "Leave queue instantly",
-            self.colors['warning'],
-            app.dodge_queue,
-            self.colors,
-            self.theme
-        )
-        app.ui_manager.add_action_card(dodge_card)
+        parts = [f"1st: {app.instalock_champion}"]
+        
+        if app.instalock_backup_2:
+            parts.append(f"2nd: {app.instalock_backup_2}")
+        
+        if app.instalock_backup_3:
+            parts.append(f"3rd: {app.instalock_backup_3}")
+        
+        return " | ".join(parts)
+    
+    def _restore_champion_icons(self, app):
+        """Restaura ícones dos campeões após recriar as views"""
+        try:
+            print("\n" + "="*60)
+            print("🔄 RESTAURANDO ÍCONES APÓS RECRIAR VIEW")
+            print("="*60)
+            
+            # Restaurar Instalock
+            if app.instalock_champion:
+                print(f"♻️ Restaurando Instalock: {app.instalock_champion}")
+                app.champion_manager.update_instalock_display(app, app.instalock_champion)
+            else:
+                print("ℹ️ Nenhum campeão Instalock para restaurar")
+            
+            # Restaurar AutoBan
+            if app.autoban_champion:
+                print(f"♻️ Restaurando AutoBan: {app.autoban_champion}")
+                app.champion_manager.update_autoban_display(app, app.autoban_champion)
+            else:
+                print("ℹ️ Nenhum campeão AutoBan para restaurar")
+            
+            print("="*60)
+            print("✅ RESTAURAÇÃO CONCLUÍDA")
+            print("="*60 + "\n")
+        except Exception as e:
+            print(f"❌ Erro ao restaurar ícones: {e}")
+            import traceback
+            traceback.print_exc()
     
     def update_colors(self, colors):
+        """Atualiza as cores da view"""
         self.colors = colors

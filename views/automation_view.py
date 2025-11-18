@@ -1,4 +1,5 @@
-"""Automation View - Funcionalidades de automação - CORRIGIDO"""
+# views/automation_view.py - CORRIGIDO
+"""Automation View - Funcionalidades de automação"""
 import customtkinter as ctk
 from ui.components import ActionCard, FeatureCard
 
@@ -17,7 +18,7 @@ class AutomationView:
         # Descrição
         desc = ctk.CTkLabel(
             app.ui_manager.scroll_area,
-            text="Automate your League of Legends experience",
+            text="Automate your League of Legends experience with backup system",
             font=self.theme['fonts']['small'],
             text_color=self.colors['text_secondary']
         )
@@ -35,10 +36,11 @@ class AutomationView:
         # COLUNA 2: Game Automation
         self._create_game_automation(container, app)
         
-        # ⭐ RESTAURAR ÍCONES APÓS CRIAR AS CARDS ⭐
+        # Restaurar ícones após criar as cards
         app.after(50, lambda: self._restore_champion_icons(app))
     
     def _create_champion_automation(self, parent, app):
+        """Cria seção de automação de campeões"""
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
@@ -49,11 +51,14 @@ class AutomationView:
             text_color=self.colors['primary']
         ).pack(anchor="w", pady=(0, 15))
         
+        # Montar descrição com backups
+        instalock_desc = self._get_instalock_description(app)
+        
         # Instalock - COM ÍCONE
         instalock_card = FeatureCard(
             frame,
             "🔒 Instalock",
-            "Automatically select your champion",
+            instalock_desc,
             self.colors['primary'],
             app.toggle_instalock,
             app.open_instalock_hub,
@@ -70,10 +75,11 @@ class AutomationView:
         app.ui_manager.add_spacing(10)
         
         # Auto Ban - COM ÍCONE
+        autoban_desc = self._get_autoban_description(app)
         autoban_card = FeatureCard(
             frame,
             "⛔ Auto Ban",
-            "Automatically ban champion",
+            autoban_desc,
             self.colors['secondary'],
             app.toggle_autoban,
             app.open_autoban_hub,
@@ -150,18 +156,37 @@ class AutomationView:
         lobby_card.pack(fill="x", pady=5)
         app.ui_manager.action_cards.append(lobby_card)
         
-        # Dodge Queue
-        dodge_card = ActionCard(
-            frame,
-            "🚀 Dodge Queue",
-            "Leave queue instantly",
-            self.colors['warning'],
-            app.dodge_queue,
-            self.colors,
-            self.theme
-        )
-        dodge_card.pack(fill="x", pady=5)
-        app.ui_manager.action_cards.append(dodge_card)
+
+    
+    def _get_instalock_description(self, app):
+        """Retorna descrição formatada do instalock com backups"""
+        if not app.instalock_champion:
+            return "No champion selected"
+        
+        parts = [f"1st: {app.instalock_champion}"]
+        
+        if app.instalock_backup_2:
+            parts.append(f"2nd: {app.instalock_backup_2}")
+        
+        if app.instalock_backup_3:
+            parts.append(f"3rd: {app.instalock_backup_3}")
+        
+        return " | ".join(parts)
+    
+    def _get_autoban_description(self, app):
+        """Retorna descrição formatada do auto ban com backups"""
+        if not app.autoban_champion:
+            return "No champion selected"
+        
+        parts = [f"1st: {app.autoban_champion}"]
+        
+        if hasattr(app, 'autoban_backup_2') and app.autoban_backup_2:
+            parts.append(f"2nd: {app.autoban_backup_2}")
+        
+        if hasattr(app, 'autoban_backup_3') and app.autoban_backup_3:
+            parts.append(f"3rd: {app.autoban_backup_3}")
+        
+        return " | ".join(parts)
     
     def _restore_champion_icons(self, app):
         """Restaura ícones dos campeões após recriar as views"""

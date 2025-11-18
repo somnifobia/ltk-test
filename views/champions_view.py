@@ -1,4 +1,5 @@
-"""Champions View - Gerenciamento de campeões"""
+# views/champions_view.py - CORRIGIDO
+"""Champions View - Gerenciamento de campeões com backup picks"""
 import customtkinter as ctk
 from ui.components import FeatureCard
 
@@ -17,37 +18,43 @@ class ChampionsView:
         # Descrição
         desc = ctk.CTkLabel(
             app.ui_manager.scroll_area,
-            text="Configure automatic champion selection and banning",
+            text="Configure automatic champion selection and banning with backup system",
             font=self.theme['fonts']['small'],
             text_color=self.colors['text_secondary']
         )
         desc.pack(anchor="w", pady=(0, 20))
         
+        # Montar descrição do Instalock com backups
+        instalock_desc = self._get_instalock_description(app)
+        
         # Instalock Card
         instalock_card = FeatureCard(
             app.ui_manager.scroll_area,
             "🔒 INSTALOCK",
-            f"Selected: {app.instalock_champion}" if app.instalock_champion else "No champion selected",
+            instalock_desc,
             self.colors['primary'],
             app.toggle_instalock,
             app.open_instalock_hub,
             self.colors,
             self.theme,
-            is_enabled=app.instalock_enabled
+            is_enabled=app.instalock_enabled,
+            show_icon=True
         )
         app.ui_manager.add_feature_card(instalock_card)
         
         # Auto Ban Card
+        autoban_desc = self._get_autoban_description(app)
         autoban_card = FeatureCard(
             app.ui_manager.scroll_area,
             "⛔ AUTO BAN",
-            f"Selected: {app.autoban_champion}" if app.autoban_champion else "No champion selected",
+            autoban_desc,
             self.colors['secondary'],
             app.toggle_autoban,
             app.open_autoban_hub,
             self.colors,
             self.theme,
-            is_enabled=app.autoban_enabled
+            is_enabled=app.autoban_enabled,
+            show_icon=True
         )
         app.ui_manager.add_feature_card(autoban_card)
         
@@ -72,11 +79,13 @@ class ChampionsView:
         ).pack(anchor="w", pady=(0, 10))
         
         tips = [
-            "• Click the ⚙️ button to select your champion",
+            "• Click the ⚙️ button to configure your champion picks",
+            "• Set up to 3 backup champions for instalock",
+            "• Set up to 3 backup champions for auto ban",
+            "• If all picks are banned, a random champion is selected",
             "• Instalock works in blind pick and draft pick",
             "• Auto Ban only works in ranked and draft pick",
-            "• Toggle ON to enable the feature",
-            "• The champion icon will appear when selected"
+            "• Toggle ON to enable the feature"
         ]
         
         for tip in tips:
@@ -87,6 +96,50 @@ class ChampionsView:
                 text_color=self.colors['text_secondary'],
                 anchor="w"
             ).pack(anchor="w", pady=2)
+        
+        # Restaurar ícones após criar cards
+        app.after(50, lambda: self._restore_champion_icons(app))
+    
+    def _get_instalock_description(self, app):
+        """Retorna descrição formatada do instalock com backups"""
+        if not app.instalock_champion:
+            return "No champion selected"
+        
+        parts = [f"1st: {app.instalock_champion}"]
+        
+        if app.instalock_backup_2:
+            parts.append(f"2nd: {app.instalock_backup_2}")
+        
+        if app.instalock_backup_3:
+            parts.append(f"3rd: {app.instalock_backup_3}")
+        
+        return " | ".join(parts)
+    
+    def _get_autoban_description(self, app):
+        """Retorna descrição formatada do auto ban com backups"""
+        if not app.autoban_champion:
+            return "No champion selected"
+        
+        parts = [f"1st: {app.autoban_champion}"]
+        
+        if hasattr(app, 'autoban_backup_2') and app.autoban_backup_2:
+            parts.append(f"2nd: {app.autoban_backup_2}")
+        
+        if hasattr(app, 'autoban_backup_3') and app.autoban_backup_3:
+            parts.append(f"3rd: {app.autoban_backup_3}")
+        
+        return " | ".join(parts)
+    
+    def _restore_champion_icons(self, app):
+        """Restaura ícones dos campeões após recriar as views"""
+        try:
+            if app.instalock_champion:
+                app.champion_manager.update_instalock_display(app, app.instalock_champion)
+            
+            if app.autoban_champion:
+                app.champion_manager.update_autoban_display(app, app.autoban_champion)
+        except Exception as e:
+            print(f"Erro ao restaurar ícones: {e}")
     
     def update_colors(self, colors):
         """Atualiza as cores da view"""

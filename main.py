@@ -1,8 +1,4 @@
-# main.py - League Toolkit v2.0
-"""
-League Toolkit - Automacao para League of Legends
-Versao: 2.0
-"""
+
 
 import customtkinter as ctk
 from tkinter import messagebox
@@ -14,7 +10,9 @@ from ui.ui_manager import UIManager
 from ui.theme.theme_manager import ThemeManager
 from views import HomeView, ChampionsView, AutomationView, StatusView, AboutView, SettingsView
 from ui.champion_manager import ChampionManager
-from ui.champion_selector_optimized import OptimizedChampionSelector, preload_champion_data
+from ui.modern_instalock_config import open_modern_instalock_config
+from ui.modern_autoban_config import open_modern_autoban_config
+
 
 # Imports dos modulos de automacao
 from core.api_manager import api_manager
@@ -47,15 +45,9 @@ except ImportError:
     reveal = None
     print("Reveal nao disponivel")
 
-try:
-    from automation.Dodge import dodge
-except ImportError:
-    dodge = None
-    print("Dodge nao disponivel")
-
 
 class LeagueToolkitApp(ctk.CTk):
-    """Aplicacao Principal - League Toolkit v2.0"""
+
     
     def __init__(self):
         super().__init__()
@@ -64,49 +56,41 @@ class LeagueToolkitApp(ctk.CTk):
         print("LEAGUE TOOLKIT v2.0 - INICIANDO")
         print("=" * 60)
         
-        # ========================
         # CONFIGURACOES BASICAS
-        # ========================
         self.title("League Toolkit v2.0")
         self.geometry("1200x700")
         self.minsize(1000, 600)
         
-        # ========================
         # INICIALIZAR MANAGERS
-        # ========================
         print("\nInicializando Managers...")
         
-        # Theme Manager
         self.theme_manager = ThemeManager()
         self.colors = self.theme_manager.get_current_theme()
         print(f"Tema carregado: {self.colors.get('name', 'Unknown')}")
         
-        # API Manager
         self.api_manager = api_manager
         print("API Manager inicializado")
         
-        # Champion Manager
         self.champion_manager = ChampionManager()
         print("Champion Manager inicializado")
         
-        # ========================
-        # ESTADOS DA APLICACAO
-        # ========================
+
         print("\nConfigurando estados...")
         
-        # Estados de features
         self.instalock_enabled = False
         self.instalock_champion = None
+        self.instalock_backup_2 = None
+        self.instalock_backup_3 = None
         
         self.autoban_enabled = False
         self.autoban_champion = None
+        self.autoban_backup_2 = None
+        self.autoban_backup_3 = None
         
-        # ========================
+
         # MODULOS DE AUTOMACAO
-        # ========================
         print("\nInicializando modulos de automacao...")
         
-        # Auto Accept
         if AutoAccept:
             try:
                 self.auto_accept = AutoAccept()
@@ -117,7 +101,6 @@ class LeagueToolkitApp(ctk.CTk):
         else:
             self.auto_accept = None
         
-        # InstalockAutoban
         if InstalockAutoban:
             try:
                 self.instalock_autoban = InstalockAutoban()
@@ -129,7 +112,6 @@ class LeagueToolkitApp(ctk.CTk):
         else:
             self.instalock_autoban = None
         
-        # Chat Toggle
         if Chat:
             try:
                 self.chat_toggle = Chat()
@@ -140,7 +122,6 @@ class LeagueToolkitApp(ctk.CTk):
         else:
             self.chat_toggle = None
         
-        # Lobby Reveal
         if reveal:
             try:
                 self.lobby_reveal_module = reveal
@@ -151,37 +132,16 @@ class LeagueToolkitApp(ctk.CTk):
         else:
             self.lobby_reveal_module = None
         
-        # Dodge Queue
-        if dodge:
-            try:
-                self.dodge_queue_module = dodge
-                print("Dodge Queue inicializado")
-            except Exception as e:
-                print(f"Erro ao inicializar Dodge Queue: {e}")
-                self.dodge_queue_module = None
-        else:
-            self.dodge_queue_module = None
         
-        # ========================
-        # PRE-CARREGAMENTO
-        # ========================
-        print("\nPre-carregando dados dos campeoes...")
-        preload_champion_data(self.api_manager)
-        
-        # ========================
         # CONFIGURAR UI
-        # ========================
         print("\nConfigurando interface...")
         self.configure(fg_color=self.colors['bg_dark'])
         
-        # Criar UI Manager
         self.ui_manager = UIManager(self, self.colors)
         self.ui_manager.create_main_layout()
         print("Layout principal criado")
         
-        # ========================
         # CRIAR VIEWS
-        # ========================
         print("\nCriando views...")
         self.views = {
             'home': HomeView(self.colors, self.ui_manager.theme),
@@ -193,15 +153,11 @@ class LeagueToolkitApp(ctk.CTk):
         }
         print("Views criadas")
         
-        # ========================
         # CARREGAR VIEW INICIAL
-        # ========================
         print("\nCarregando view inicial...")
         self.switch_category('home')
         
-        # ========================
         # CONFIGURAR ICONE
-        # ========================
         try:
             icon_path = self.colors.get('icon_file', 'tiamat.ico')
             if os.path.exists(icon_path):
@@ -210,9 +166,7 @@ class LeagueToolkitApp(ctk.CTk):
         except Exception as e:
             print(f"Nao foi possivel carregar icone: {e}")
         
-        # ========================
         # PROTOCOLO DE FECHAMENTO
-        # ========================
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         print("\n" + "=" * 60)
@@ -253,60 +207,30 @@ class LeagueToolkitApp(ctk.CTk):
             messagebox.showerror("Erro", f"Erro ao carregar {category_id}")
     
     # ========================================
-    # INSTALOCK
+    # INSTALOCK COM BACKUP
     # ========================================
     
     def open_instalock_hub(self):
-        """Abre seletor de campeoes para instalock"""
-        print("\nAbrindo Instalock Hub...")
-        
-        try:
-            OptimizedChampionSelector(
-                parent=self,
-                title="INSTALOCK CHAMPION",
-                icon="LOCK",
-                color=self.colors['primary'],
-                callback=self.handle_instalock_selection,
-                api_manager=self.api_manager
-            )
-        except Exception as e:
-            print(f"Erro ao abrir Instalock Hub: {e}")
-            messagebox.showerror("Erro", f"Erro ao abrir seletor: {e}")
+        """Abre configurador moderno de instalock com abas"""
+        print("\nAbrindo Modern Instalock Configuration...")
+        open_modern_instalock_config(self, self)
     
-    def handle_instalock_selection(self, champion_name):
-        """Callback quando campeao eh selecionado no instalock"""
-        if not self.instalock_autoban:
-            messagebox.showerror("Erro", "InstalockAutoban nao disponivel")
-            return False
-        
-        if champion_name == "disable":
-            self.instalock_enabled = False
-            self.instalock_champion = None
-            self.instalock_autoban.instalock_enabled = False
+    def update_instalock_card(self):
+        """Atualiza a descricao do card de Instalock com os backups"""
+        if hasattr(self.ui_manager, 'instalock_card') and self.ui_manager.instalock_card:
+            status_parts = [self.instalock_champion]
             
-            print("Instalock desabilitado")
-            self.champion_manager.update_instalock_display(self, None)
-            return True
-        
-        if champion_name:
-            success = self.instalock_autoban.set_instalock_champion(champion_name)
+            if self.instalock_backup_2:
+                status_parts.append(f"2nd: {self.instalock_backup_2}")
+            if self.instalock_backup_3:
+                status_parts.append(f"3rd: {self.instalock_backup_3}")
             
-            if success:
-                self.instalock_champion = champion_name
-                self.instalock_enabled = True
-                
-                print(f"Instalock configurado: {champion_name}")
-                
-                # Atualizar display
-                self.champion_manager.update_instalock_display(self, champion_name)
-                
-                messagebox.showinfo("Sucesso", f"Instalock configurado para {champion_name}!")
-                return True
-            else:
-                messagebox.showerror("Erro", f"Nao foi possivel configurar {champion_name}")
-                return False
-        
-        return False
+            description = f"Selected: {' | '.join(status_parts)}"
+            self.ui_manager.instalock_card.update_description(description)
+            
+            # Atualizar icone do 1º pick
+            if self.instalock_champion and self.instalock_champion != "Random":
+                self.champion_manager.update_instalock_display(self, self.instalock_champion)
     
     def toggle_instalock(self, enabled):
         """Toggle do instalock"""
@@ -330,56 +254,9 @@ class LeagueToolkitApp(ctk.CTk):
     # ========================================
     
     def open_autoban_hub(self):
-        """Abre seletor de campeoes para autoban"""
-        print("\nAbrindo Auto Ban Hub...")
-        
-        try:
-            OptimizedChampionSelector(
-                parent=self,
-                title="AUTO BAN CHAMPION",
-                icon="BAN",
-                color=self.colors['secondary'],
-                callback=self.handle_autoban_selection,
-                api_manager=self.api_manager
-            )
-        except Exception as e:
-            print(f"Erro ao abrir Auto Ban Hub: {e}")
-            messagebox.showerror("Erro", f"Erro ao abrir seletor: {e}")
-    
-    def handle_autoban_selection(self, champion_name):
-        """Callback quando campeao eh selecionado no autoban"""
-        if not self.instalock_autoban:
-            messagebox.showerror("Erro", "InstalockAutoban nao disponivel")
-            return False
-        
-        if champion_name == "disable":
-            self.autoban_enabled = False
-            self.autoban_champion = None
-            self.instalock_autoban.auto_ban_enabled = False
-            
-            print("Auto Ban desabilitado")
-            self.champion_manager.update_autoban_display(self, None)
-            return True
-        
-        if champion_name:
-            success = self.instalock_autoban.set_auto_ban_champion(champion_name)
-            
-            if success:
-                self.autoban_champion = champion_name
-                self.autoban_enabled = True
-                
-                print(f"Auto Ban configurado: {champion_name}")
-                
-                # Atualizar display
-                self.champion_manager.update_autoban_display(self, champion_name)
-                
-                messagebox.showinfo("Sucesso", f"Auto Ban configurado para {champion_name}!")
-                return True
-            else:
-                messagebox.showerror("Erro", f"Nao foi possivel configurar {champion_name}")
-                return False
-        
-        return False
+        """Abre configurador moderno de auto ban com abas"""
+        print("\nAbrindo Modern Auto Ban Configuration...")
+        open_modern_autoban_config(self, self)
 
     def toggle_autoban(self, enabled):
         """Toggle do autoban"""
@@ -398,6 +275,7 @@ class LeagueToolkitApp(ctk.CTk):
         status = "ATIVADO" if enabled else "DESATIVADO"
         print(f"Auto Ban {status}")
     
+ 
     # ========================================
     # AUTO ACCEPT
     # ========================================
@@ -435,8 +313,6 @@ class LeagueToolkitApp(ctk.CTk):
         try:
             if hasattr(self.chat_toggle, 'toggle'):
                 self.chat_toggle.toggle()
-            elif hasattr(self.chat_toggle, 'disconnect') and hasattr(self.chat_toggle, 'reconnect'):
-                pass
             
             messagebox.showinfo("Chat Toggle", "Chat alternado com sucesso!")
             print("Chat alternado")
@@ -462,30 +338,7 @@ class LeagueToolkitApp(ctk.CTk):
             print(f"Erro no Lobby Reveal: {e}")
             messagebox.showerror("Erro", f"Erro ao abrir Porofessor: {e}")
     
-    def dodge_queue(self):
-        """Abandona a fila"""
-        if not self.dodge_queue_module:
-            messagebox.showerror("Erro", "Dodge Queue nao disponivel")
-            return
-        
-        try:
-            confirm = messagebox.askyesno(
-                "Confirmar",
-                "Deseja realmente sair da fila?\n\nIsso pode resultar em penalidade!"
-            )
-            
-            if confirm:
-                if callable(self.dodge_queue_module):
-                    self.dodge_queue_module()
-                elif hasattr(self.dodge_queue_module, 'dodge'):
-                    self.dodge_queue_module.dodge()
-                
-                messagebox.showinfo("Dodge Queue", "Fila abandonada!")
-                print("Dodge Queue executado")
-        except Exception as e:
-            print(f"Erro ao abandonar fila: {e}")
-            messagebox.showerror("Erro", f"Erro ao abandonar fila: {e}")
-    
+
     # ========================================
     # UTILITARIOS
     # ========================================
@@ -496,31 +349,42 @@ class LeagueToolkitApp(ctk.CTk):
             try:
                 if 'INSTALOCK' in card.title_text.upper():
                     card.set_enabled(self.instalock_enabled)
-                    if self.instalock_champion:
-                        card.update_description(f"CHAMPION: {self.instalock_champion}")
-                    else:
-                        card.update_description("Nenhum campeao selecionado")
+                    self.update_instalock_card()
                 
                 elif 'AUTO BAN' in card.title_text.upper():
                     card.set_enabled(self.autoban_enabled)
                     if self.autoban_champion:
-                        card.update_description(f"CHAMPION: {self.autoban_champion}")
+                        card.update_description(f"Selected: {self.autoban_champion}")
                     else:
-                        card.update_description("Nenhum campeao selecionado")
+                        card.update_description("No champion selected")
                 
                 elif 'AUTO ACCEPT' in card.title_text.upper():
                     if self.auto_accept:
                         card.set_enabled(self.auto_accept.auto_accept_enabled)
+                
+
+                    
             except Exception as e:
                 print(f"Erro ao atualizar card: {e}")
     
     def get_status_data(self):
         """Retorna dados de status para a view de status"""
+        instalock_status = None
+        if self.instalock_enabled and self.instalock_champion:
+            instalock_status = self.instalock_champion
+            if self.instalock_backup_2 or self.instalock_backup_3:
+                backups = []
+                if self.instalock_backup_2:
+                    backups.append(f"2nd:{self.instalock_backup_2}")
+                if self.instalock_backup_3:
+                    backups.append(f"3rd:{self.instalock_backup_3}")
+                instalock_status += f" ({', '.join(backups)})"
+        
         return {
             'auto_accept': self.auto_accept.auto_accept_enabled if self.auto_accept else False,
-            'instalock': self.instalock_champion if self.instalock_enabled else None,
+            'instalock': instalock_status,
             'auto_ban': self.autoban_champion if self.autoban_enabled else None,
-            'chat': 'connected'
+            'chat': 'connected',
         }
     
     def on_theme_change(self, new_colors):

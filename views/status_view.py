@@ -80,6 +80,8 @@ class StatusView:
             self._add_status_item(modules_frame, "⛔ Auto Ban", status['auto_ban'], self.colors['secondary'])
             has_active = True
         
+
+        
         if not has_active:
             ctk.CTkLabel(
                 modules_frame,
@@ -146,7 +148,8 @@ class StatusView:
             ("Application", "League Toolkit v2.0"),
             ("Connection", "LCU Connected"),
             ("Status", "All systems operational"),
-            ("Update Check", "Automatic")
+            ("Update Check", "Automatic"),
+            ("U.GG Integration", "Active")  # 🆕
         ]
         
         for label, value in info_items:
