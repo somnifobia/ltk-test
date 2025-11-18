@@ -1,3 +1,4 @@
+from PIL import Image
 import customtkinter as ctk 
 from tkinter import messagebox 
 import sys 
