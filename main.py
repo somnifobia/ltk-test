@@ -11,8 +11,8 @@ from ui.champion_manager import ChampionManager
 from ui.modern_instalock_config import open_modern_instalock_config 
 from ui.modern_autoban_config import open_modern_autoban_config 
 
-
 from core.api_manager import api_manager 
+from core.updater import Updater  
 
 try:
     from automation.AutoAccept import AutoAccept 
@@ -45,10 +45,10 @@ class LeagueToolkitApp(ctk.CTk):
         super().__init__()
 
         print("=" * 60)
-        print("LEAGUE TOOLKIT v2.0 - INICIANDO")
+        print("LEAGUE TOOLKIT v2.1.0 - INICIANDO")
         print("=" * 60)
 
-        self.title("League Toolkit v2.0")
+        self.title("League Toolkit v2.1.0")
         self.geometry("1200x1150")
         self.minsize(1000, 600)
 
@@ -63,6 +63,11 @@ class LeagueToolkitApp(ctk.CTk):
 
         self.champion_manager = ChampionManager()
         print("Champion Manager inicializado")
+
+        # 🔔 NOVO: Inicializa sistema de atualização
+        print("\nInicializando sistema de atualizacao...")
+        self.updater = Updater(app=self)
+        print("Updater inicializado")
 
         print("\nConfigurando estados...")
 
@@ -139,14 +144,25 @@ class LeagueToolkitApp(ctk.CTk):
         print("\nCarregando view inicial...")
         self.switch_category('home')
 
-        # Setup do ícone (removida duplicação)
         self._setup_icon()
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        # 🔔 NOVO: Verifica atualizações ao iniciar (após 3 segundos)
+        print("\nAgendando verificacao de atualizacoes...")
+        self.after(3000, self._check_updates_on_startup)
+
         print("\n" + "=" * 60)
         print("LEAGUE TOOLKIT INICIADO COM SUCESSO!")
         print("=" * 60 + "\n")
+
+    def _check_updates_on_startup(self):
+        """Verifica atualizações ao iniciar (silencioso)"""
+        try:
+            print("\n🔍 Verificando atualizações em background...")
+            self.updater.check_on_startup()
+        except Exception as e:
+            print(f"⚠️ Erro ao verificar atualizações: {e}")
 
     def _setup_icon(self):
         """Configura o ícone da aplicação para janela e barra de tarefas"""
@@ -212,13 +228,12 @@ class LeagueToolkitApp(ctk.CTk):
             elif category_id == 'status':
                 self.views['status'].create(self.ui_manager.scroll_area, self.get_status_data)
             elif category_id == 'about':
-                self.views['about'].create(self.ui_manager.scroll_area)
+                self.views['about'].create(self.ui_manager.scroll_area, self)  # 🔔 ATUALIZADO: Passa self
             elif category_id == 'settings':
                 self.views['settings'].create(self.ui_manager.scroll_area, self.on_theme_change)
 
             print(f"View '{category_id}' carregada")
 
-            # Sincroniza ícones de campeões após carregar a view
             self.after(150, lambda: self.champion_manager.sync_icons_after_view_change(self))
 
         except Exception as e:
@@ -244,7 +259,6 @@ class LeagueToolkitApp(ctk.CTk):
             description = f"Selected: {' | '.join(status_parts)}"
             self.ui_manager.instalock_card.update_description(description)
 
-            # Atualiza ícone se houver campeão selecionado
             if self.instalock_champion and self.instalock_champion != "Random":
                 self.champion_manager.update_instalock_display(self, self.instalock_champion)
 
@@ -393,7 +407,6 @@ class LeagueToolkitApp(ctk.CTk):
             except Exception as e:
                 print(f"Erro ao atualizar card: {e}")
         
-        # Atualiza contador de ativos
         if hasattr(self.ui_manager, 'update_active_count'):
             self.ui_manager.update_active_count()
 

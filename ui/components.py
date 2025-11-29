@@ -47,7 +47,7 @@ class Sidebar (ctk .CTkFrame ):
 
         self .footer_label =ctk .CTkLabel (
         self .footer ,
-        text ="v2.0",
+        text ="v2.1.0",
         font =("Consolas",10 ),
         text_color =colors ['text_secondary']
         )

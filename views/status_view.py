@@ -137,7 +137,7 @@ class StatusView :
         ).pack (anchor ="w",pady =(0 ,10 ))
 
         info_items =[
-        ("Application","League Toolkit v2.0"),
+        ("Application","League Toolkit v2.1.0"),
         ("Connection","LCU Connected"),
         ("Status","All systems operational"),
         ("Update Check","Automatic"),
