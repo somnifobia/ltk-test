@@ -26,7 +26,7 @@ class AppStateManager {
             currentView: 'dashboard',
             lastUpdateTime: null
         };
-        
+
         this.listeners = new Set();
     }
 
@@ -89,7 +89,7 @@ const MockData = {
         platformId: 'BR1',
         region: 'BR'
     },
-    
+
     ranked: {
         solo: {
             tier: 'GOLD',
@@ -100,7 +100,7 @@ const MockData = {
             rankDisplay: 'Gold III'
         }
     },
-    
+
     credentials: {
         port: '2999',
         protocol: 'https',
@@ -120,16 +120,16 @@ class Application {
     async initialize() {
         console.log('[App] 🚀 Initializing application...');
         console.log('[App] Environment:', Environment.isElectron() ? 'Electron' : 'Browser');
-        
+
         try {
             this.setupEventListeners();
-            
+
             if (Environment.isElectron()) {
                 await this.initializeElectronMode();
             } else {
                 this.initializeBrowserMode();
             }
-            
+
             this.isInitialized = true;
             console.log('[App] ✓ Initialized successfully');
         } catch (error) {
@@ -140,7 +140,7 @@ class Application {
 
     async initializeElectronMode() {
         console.log('[App] Initializing Electron mode...');
-        
+
         await this.checkLCUStatus();
         await this.loadFeatureStates();
         this.setupLCUHandlers();
@@ -149,14 +149,14 @@ class Application {
 
     initializeBrowserMode() {
         console.log('[App] Initializing Browser mode (Mock Data)...');
-        
+
         // Load mock data
         appState.update({
             connected: true,
             summoner: MockData.summoner,
             ranked: MockData.ranked
         });
-        
+
         UI.updateConnectionStatus(true, MockData.credentials);
         UI.updateSummonerDisplay();
         UI.hideConnectionWarning();
@@ -165,12 +165,12 @@ class Application {
 
     setupEventListeners() {
         EventHandler.setupAll();
-        
+
         // Listen for state changes
         appState.subscribe((key, value) => {
             console.log(`[State] ${key} updated:`, value);
         });
-    
+
         // Listen for update status changes (Electron only)
         if (Environment.isElectron()) {
             window.api.onUpdateStatus((status) => {
@@ -182,14 +182,14 @@ class Application {
 
     async checkLCUStatus() {
         if (!Environment.isElectron()) return;
-        
+
         try {
             const status = await window.api.getLCUStatus();
             const wasConnected = appState.get('connected');
-            
+
             appState.set('connected', status.connected);
             UI.updateConnectionStatus(status.connected, status.credentials);
-            
+
             if (status.connected && !wasConnected) {
                 console.log('[App] ✓ LCU Connected - Loading data...');
                 await DataLoader.loadAll();
@@ -211,7 +211,7 @@ class Application {
 
     async loadFeatureStates() {
         if (!Environment.isElectron()) return;
-        
+
         try {
             const result = await window.api.getFeatureStates();
             if (result.success) {
@@ -225,7 +225,7 @@ class Application {
 
     setupLCUHandlers() {
         if (!Environment.isElectron()) return;
-        
+
         window.api.onLCUConnected((data) => this.handleLCUConnected(data));
         window.api.onLCUDisconnected((data) => this.handleLCUDisconnected(data));
         window.api.onLCUError((data) => this.handleLCUError(data));
@@ -260,17 +260,17 @@ class Application {
 
     async handleSummonerData(data) {
         console.log('[App] Summoner data received:', data);
-        
+
         let summoner = data.summoner;
-        
+
         // Ensure summoner has region (it might come without it from backend events)
         if (!summoner.region || summoner.region === undefined) {
             try {
                 const regionInfo = await window.api.getClientInfo();
                 if (regionInfo.success && regionInfo.region) {
-                    summoner.region = regionInfo.region.webRegion || 
-                                    regionInfo.region.region || 
-                                    regionInfo.platform || 
+                    summoner.region = regionInfo.region.webRegion ||
+                                    regionInfo.region.region ||
+                                    regionInfo.platform ||
                                     'BR';
                     console.log('[App] ✓ Added region to summoner:', summoner.region);
                 }
@@ -279,7 +279,7 @@ class Application {
                 summoner.region = 'BR'; // Default fallback
             }
         }
-        
+
         appState.update({
             summoner: summoner,
             ranked: data.ranked
@@ -300,7 +300,7 @@ class Application {
     handleLogEntry(logEntry) {
         const logs = appState.get('logs');
         logs.unshift(logEntry);
-        
+
         if (logs.length > 500) {
             appState.set('logs', logs.slice(0, 500));
         }
@@ -308,7 +308,7 @@ class Application {
 
     startStatusMonitor() {
         if (!Environment.isElectron()) return;
-        
+
         if (this.statusMonitorInterval) {
             clearInterval(this.statusMonitorInterval);
         }
@@ -337,16 +337,16 @@ class DataLoader {
             console.log('[DataLoader] Skipping - Browser mode');
             return;
         }
-        
+
         try {
             console.log('[DataLoader] Loading all data...');
-            
+
             await Promise.allSettled([
                 this.loadSummonerData(),
                 this.loadMatchHistory(),
                 this.loadRankedStats()
             ]);
-            
+
             appState.set('lastUpdateTime', new Date());
             console.log('[DataLoader] ✓ All data loaded');
         } catch (error) {
@@ -357,27 +357,27 @@ class DataLoader {
     static async loadSummonerData() {
         try {
             const result = await window.api.getSummonerData();
-            
+
             if (result.success && result.data) {
                 let summoner = result.data.summoner;
-                
+
                 // Always fetch region from client info since backend doesn't provide it
                 try {
                     const regionInfo = await window.api.getClientInfo();
                     if (regionInfo.success && regionInfo.region) {
                         // Priority: webRegion > region > platform
-                        summoner.region = regionInfo.region.webRegion || 
-                                        regionInfo.region.region || 
-                                        regionInfo.platform || 
+                        summoner.region = regionInfo.region.webRegion ||
+                                        regionInfo.region.region ||
+                                        regionInfo.platform ||
                                         'BR';
-                        
+
                         console.log('[DataLoader] ✓ Region fetched from client:', summoner.region);
                     }
                 } catch (error) {
                     console.warn('[DataLoader] Could not fetch region:', error);
                     summoner.region = 'BR'; // Default fallback
                 }
-                
+
                 appState.update({
                     summoner: summoner,
                     ranked: result.data.ranked
@@ -391,11 +391,11 @@ class DataLoader {
 
     static async loadMatchHistory() {
         const summoner = appState.get('summoner');
-        
+
         if (!summoner?.puuid) return;
 
         const result = await window.api.getMatchHistory(summoner.puuid, 20);
-        
+
         if (result.success) {
             appState.update({
                 matches: result.matches || [],
@@ -406,7 +406,7 @@ class DataLoader {
 
     static async loadRankedStats() {
         const result = await window.api.getRankedStats();
-        
+
         if (result.success) {
             appState.set('ranked', result.stats);
         }
@@ -429,15 +429,15 @@ class UI {
             statusText: document.getElementById('statusText'),
             statusIndicator: document.getElementById('statusIndicator')
         };
-        
+
         if (elements.statusDot) {
             elements.statusDot.className = 'status-dot' + (connected ? ' online' : '');
         }
-        
+
         if (elements.statusText) {
             elements.statusText.textContent = connected ? 'Connected' : 'Disconnected';
         }
-        
+
         if (elements.statusIndicator) {
             const color = connected ? 'var(--success)' : 'var(--error)';
             const shadow = connected ? 'var(--success-glow)' : 'var(--error-glow)';
@@ -448,7 +448,7 @@ class UI {
 
     static updateReconnectButton(connected) {
         const reconnectBtn = document.getElementById('reconnectBtn');
-        
+
         if (reconnectBtn) {
             reconnectBtn.disabled = connected;
             reconnectBtn.style.opacity = connected ? '0.5' : '1';
@@ -457,7 +457,7 @@ class UI {
 
     static updateUserInfo(connected) {
         const userInfo = document.getElementById('userInfo');
-        
+
         if (userInfo) {
             userInfo.style.opacity = connected ? '1' : '0.4';
         }
@@ -469,12 +469,12 @@ class UI {
             settingsStatus.textContent = connected ? '🟢 Connected' : '🔴 Disconnected';
             settingsStatus.style.color = connected ? 'var(--success)' : 'var(--error)';
         }
-        
+
         const settingsPort = document.getElementById('settingsPort');
         if (settingsPort && credentials) {
             settingsPort.textContent = credentials.port || '—';
         }
-        
+
         const settingsLastCheck = document.getElementById('settingsLastCheck');
         if (settingsLastCheck) {
             settingsLastCheck.textContent = new Date().toLocaleTimeString();
@@ -507,7 +507,7 @@ class UI {
             clientRegion: '—',
             locale: '—'
         };
-        
+
         Object.entries(defaultValues).forEach(([id, value]) => {
             const el = document.getElementById(id);
             if (el) el.textContent = value;
@@ -517,23 +517,23 @@ class UI {
     static updateSummonerDisplay() {
         const summoner = appState.get('summoner');
         const ranked = appState.get('ranked');
-        
+
         if (!summoner) {
             console.warn('[UI] No summoner data available');
             return;
         }
-        
+
         console.log('[UI] Updating summoner display:', summoner);
-        
+
         // Extract region from various possible formats
         let regionDisplay = this.extractRegion(summoner);
-        
+
         const elements = {
             summonerName: `${summoner.gameName}#${summoner.tagLine}`,
             level: summoner.summonerLevel,
             region: regionDisplay
         };
-        
+
         Object.entries(elements).forEach(([id, value]) => {
             const el = document.getElementById(id);
             if (el) {
@@ -541,7 +541,7 @@ class UI {
                 console.log(`[UI] Updated ${id}:`, value);
             }
         });
-        
+
         // Update rank
         if (ranked?.solo) {
             const rankEl = document.getElementById('rank');
@@ -554,14 +554,14 @@ class UI {
     static extractRegion(summoner) {
         console.log('[UI] === EXTRACTING REGION ===');
         console.log('[UI] Summoner.region:', summoner.region);
-        
+
         // Direct string check
         if (summoner.region && typeof summoner.region === 'string') {
             const result = summoner.region.toUpperCase();
             console.log('[UI] ✓ Found region:', result);
             return result;
         }
-        
+
         // If object, try to extract
         if (summoner.region && typeof summoner.region === 'object') {
             const possibleValues = [
@@ -569,7 +569,7 @@ class UI {
                 summoner.region.region,
                 summoner.region.platformId
             ];
-            
+
             for (const value of possibleValues) {
                 if (value && typeof value === 'string') {
                     const result = value.toUpperCase();
@@ -578,41 +578,41 @@ class UI {
                 }
             }
         }
-        
+
         // Try platformId as fallback
         if (summoner.platformId && typeof summoner.platformId === 'string') {
             const result = summoner.platformId.toUpperCase();
             console.log('[UI] ✓ Using platformId:', result);
             return result;
         }
-        
+
         console.log('[UI] ✗ No region found, using default: BR');
         return 'BR'; // Default to BR instead of Unknown
     }
 
     static updateFeatureToggles() {
         const features = appState.get('features');
-        
+
         const toggles = {
             autoAccept: features.autoAccept,
             instalock: features.autoPick?.enabled,
             autoBan: features.autoBan?.enabled,
             disconnectChat: features.chatDisconnected
         };
-        
+
         Object.entries(toggles).forEach(([id, enabled]) => {
             const toggle = document.getElementById(id);
             if (toggle) toggle.checked = enabled;
         });
-        
+
         if (features.autoPick?.champion) {
             this.updateChampionDisplay('instalock', features.autoPick.champion);
         }
-        
+
         if (features.autoBan?.champion) {
             this.updateChampionDisplay('autoBan', features.autoBan.champion);
         }
-        
+
         const protectBan = document.getElementById('protectBan');
         if (protectBan) {
             protectBan.checked = features.autoBan?.protect !== false;
@@ -622,7 +622,7 @@ class UI {
     static updateChampionDisplay(type, champion) {
         const input = document.getElementById(`${type}Champ`);
         if (input) input.value = champion;
-        
+
         const current = document.getElementById(`${type}Current`);
         if (current) current.textContent = champion;
     }
@@ -630,16 +630,16 @@ class UI {
     static showNotification(message, type = 'info') {
         // Remove existing notifications
         document.querySelectorAll('.notification').forEach(n => n.remove());
-        
+
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        
+
         // Add icon based on type
         const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
         notification.innerHTML = `<span style="margin-right: 8px; font-weight: bold;">${icon}</span>${message}`;
-        
+
         document.body.appendChild(notification);
-        
+
         // Auto-remove after 3 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease forwards';
@@ -675,7 +675,7 @@ class EventHandler {
 
     static setupChampionInputs() {
         const inputs = ['instalockChamp', 'autoBanChamp'];
-        
+
         inputs.forEach(inputId => {
             const input = document.getElementById(inputId);
             if (input) {
@@ -695,7 +695,7 @@ class EventHandler {
                 e.preventDefault();
                 SystemController.reconnectLCU();
             }
-            
+
             // Ctrl/Cmd + 1/2 - Switch views
             if ((e.ctrlKey || e.metaKey) && e.key === '1') {
                 e.preventDefault();
@@ -766,7 +766,7 @@ class UpdateController {
         if (!Environment.isElectron()) return;
 
         const enabled = document.getElementById('autoDownloadUpdates').checked;
-        
+
         try {
             await window.api.setUpdateConfig({ autoDownload: enabled });
             UI.showNotification(`Auto-download ${enabled ? 'enabled' : 'disabled'}`, 'success');
@@ -779,7 +779,7 @@ class UpdateController {
         if (!Environment.isElectron()) return;
 
         const enabled = document.getElementById('autoInstallUpdates').checked;
-        
+
         try {
             await window.api.setUpdateConfig({ autoInstallOnAppQuit: enabled });
             UI.showNotification(`Auto-install ${enabled ? 'enabled' : 'disabled'}`, 'success');
@@ -869,10 +869,10 @@ class FeatureController {
         if (!this.checkConnection()) return;
 
         const enabled = document.getElementById('autoAccept').checked;
-        
+
         try {
             const result = await window.api.toggleAutoAccept(enabled);
-            
+
             if (result.success) {
                 appState.setFeature('autoAccept', enabled);
                 UI.showNotification(`Auto Accept ${enabled ? 'enabled' : 'disabled'}`, 'success');
@@ -894,16 +894,16 @@ class FeatureController {
 
         const enabled = document.getElementById('instalock').checked;
         const champion = document.getElementById('instalockChamp').value.trim();
-        
+
         if (enabled && !champion) {
             UI.showNotification('Please enter a champion name', 'error');
             document.getElementById('instalock').checked = false;
             return;
         }
-        
+
         try {
             const result = await window.api.setAutoPick(champion, enabled);
-            
+
             if (result.success) {
                 appState.setFeature('autoPick', { enabled, champion });
                 UI.updateChampionDisplay('instalock', enabled ? champion : 'None');
@@ -927,16 +927,16 @@ class FeatureController {
         const enabled = document.getElementById('autoBan').checked;
         const champion = document.getElementById('autoBanChamp').value.trim();
         const protect = document.getElementById('protectBan').checked;
-        
+
         if (enabled && !champion) {
             UI.showNotification('Please enter a champion name', 'error');
             document.getElementById('autoBan').checked = false;
             return;
         }
-        
+
         try {
             const result = await window.api.setAutoBan(champion, enabled, protect);
-            
+
             if (result.success) {
                 appState.setFeature('autoBan', { enabled, champion, protect });
                 UI.updateChampionDisplay('autoBan', enabled ? champion : 'None');
@@ -958,10 +958,10 @@ class FeatureController {
         }
 
         const disconnect = document.getElementById('disconnectChat').checked;
-        
+
         try {
             const result = await window.api.toggleChat(disconnect);
-            
+
             if (result.success) {
                 appState.setFeature('chatDisconnected', disconnect);
                 UI.showNotification(`Chat ${disconnect ? 'disconnected' : 'connected'}`, 'success');
@@ -980,12 +980,12 @@ class FeatureController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return false;
         }
-        
+
         if (!appState.get('connected')) {
             UI.showNotification('Please connect to League Client first', 'error');
             return false;
         }
-        
+
         return true;
     }
 
@@ -1005,35 +1005,35 @@ class FeatureController {
 class ProfileController {
     static async changeIcon() {
         if (!this.checkConnection()) return;
-        
+
         const iconId = document.getElementById('iconId').value;
         if (!iconId) {
             UI.showNotification('Please enter an icon ID', 'error');
             return;
         }
-        
+
         const iconIdNum = parseInt(iconId);
         if (isNaN(iconIdNum) || iconIdNum < 1 || iconIdNum > 5000) {
             UI.showNotification('Please enter a valid icon ID (1-5000)', 'error');
             return;
         }
-        
+
         const btn = document.querySelector('#iconId').closest('.feature-card').querySelector('.btn');
         if (btn) {
             btn.disabled = true;
             btn.textContent = 'Changing...';
         }
-        
+
         try {
             console.log(`[Profile] Changing icon to: ${iconIdNum}`);
             const result = await window.api.changeIcon(iconIdNum);
-            
+
             console.log('[Profile] Change icon result:', result);
-            
+
             if (result.success) {
                 UI.showNotification(`Icon changed to ${iconIdNum}!`, 'success');
                 document.getElementById('iconId').value = '';
-                
+
                 // Reload summoner data to update icon display
                 setTimeout(() => DataLoader.loadSummonerData(), 800);
             } else {
@@ -1052,34 +1052,34 @@ class ProfileController {
 
     static async changeBackground() {
         if (!this.checkConnection()) return;
-        
+
         const skinId = document.getElementById('skinId').value;
         if (!skinId) {
             UI.showNotification('Please enter a skin ID', 'error');
             return;
         }
-        
+
         const skinIdNum = parseInt(skinId);
         if (isNaN(skinIdNum)) {
             UI.showNotification('Please enter a valid number', 'error');
             return;
         }
-        
+
         const btn = document.querySelector('#skinId').closest('.feature-card').querySelector('.btn');
         if (btn) {
             btn.disabled = true;
             btn.textContent = 'Changing...';
         }
-        
+
         try {
             console.log(`[Profile] Changing background to skin ID: ${skinIdNum}`);
             const result = await window.api.changeBackground(skinIdNum);
-            
+
             console.log('[Profile] Change background result:', result);
-            
+
             if (result.success) {
                 document.getElementById('skinId').value = '';
-                
+
                 // Ask if user wants to restart client to see changes
                 if (confirm('Background changed! Restart client now to see changes?')) {
                     UI.showNotification('Restarting client...', 'success');
@@ -1093,14 +1093,14 @@ class ProfileController {
                 // Show error with suggestions
                 const errorMsg = result.error || 'Unknown error';
                 UI.showNotification(`Failed: ${errorMsg}`, 'error');
-                
+
                 if (errorMsg.includes('Invalid skin ID')) {
                     console.log('💡 Try these working IDs:');
                     console.log('  Ezreal Striker: 81001');
                     console.log('  Yasuo High Noon: 157001');
                     console.log('  Ahri K/DA: 103015');
                     console.log('  Type window.showPopularSkins() to see all');
-                    
+
                     setTimeout(() => {
                         UI.showNotification('Check console for valid Skin IDs', 'info');
                     }, 500);
@@ -1119,21 +1119,21 @@ class ProfileController {
 
     static async changeRiotId() {
         if (!this.checkConnection()) return;
-        
+
         const gameName = document.getElementById('newName').value.trim();
         const tagLine = document.getElementById('newTag').value.trim();
-        
+
         if (!gameName || !tagLine) {
             UI.showNotification('Please enter both name and tag', 'error');
             return;
         }
-        
+
         const result = await this.executeProfileAction(
             () => window.api.changeRiotId(gameName, tagLine),
             'Riot ID changed successfully',
             ['newName', 'newTag']
         );
-        
+
         if (result) {
             setTimeout(() => DataLoader.loadAll(), 1000);
         }
@@ -1141,9 +1141,9 @@ class ProfileController {
 
     static async changeStatus() {
         if (!this.checkConnection()) return;
-        
+
         const status = document.getElementById('statusMessage').value;
-        
+
         await this.executeProfileAction(
             () => window.api.changeStatus(status),
             'Status updated successfully'
@@ -1152,9 +1152,9 @@ class ProfileController {
 
     static async removeBadges() {
         if (!this.checkConnection()) return;
-        
+
         if (!confirm('Remove all challenge badges from your profile?')) return;
-        
+
         await this.executeProfileAction(
             () => window.api.removeBadges(),
             'All badges removed successfully'
@@ -1164,10 +1164,10 @@ class ProfileController {
     static async executeProfileAction(apiCall, successMessage, clearInputs = null) {
         try {
             const result = await apiCall();
-            
+
             if (result.success) {
                 UI.showNotification(successMessage, 'success');
-                
+
                 if (clearInputs) {
                     const inputs = Array.isArray(clearInputs) ? clearInputs : [clearInputs];
                     inputs.forEach(id => {
@@ -1175,7 +1175,7 @@ class ProfileController {
                         if (input) input.value = '';
                     });
                 }
-                
+
                 return true;
             } else {
                 UI.showNotification(`Failed: ${result.error}`, 'error');
@@ -1193,12 +1193,12 @@ class ProfileController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return false;
         }
-        
+
         if (!appState.get('connected')) {
             UI.showNotification('Please connect to League Client first', 'error');
             return false;
         }
-        
+
         return true;
     }
 }
@@ -1208,10 +1208,10 @@ class ProfileController {
 class GameController {
     static async revealLobby() {
         if (!this.checkConnection()) return;
-        
+
         try {
             const result = await window.api.revealLobby();
-            
+
             if (result.success) {
                 UI.showNotification('Opening Porofessor...', 'success');
             } else {
@@ -1225,9 +1225,9 @@ class GameController {
 
     static async dodgeGame() {
         if (!this.checkConnection()) return;
-        
+
         if (!confirm('Are you sure you want to dodge? You will receive a penalty.')) return;
-        
+
         await this.executeGameAction(
             () => window.api.dodge(),
             'Game dodged successfully'
@@ -1236,12 +1236,12 @@ class GameController {
 
     static async removeAllFriends() {
         if (!this.checkConnection()) return;
-        
+
         if (!confirm('Are you sure you want to remove ALL friends? This cannot be undone.')) return;
-        
+
         try {
             const result = await window.api.removeFriends();
-            
+
             if (result.success) {
                 UI.showNotification(`Removed ${result.removed || 0} friends`, 'success');
             } else {
@@ -1255,9 +1255,9 @@ class GameController {
 
     static async restartClient() {
         if (!this.checkConnection()) return;
-        
+
         if (!confirm('Restart League Client?')) return;
-        
+
         await this.executeGameAction(
             () => window.api.restartClient(),
             'Client restarting...'
@@ -1267,7 +1267,7 @@ class GameController {
     static async executeGameAction(apiCall, successMessage) {
         try {
             const result = await apiCall();
-            
+
             if (result.success) {
                 UI.showNotification(successMessage, 'success');
             } else {
@@ -1284,14 +1284,255 @@ class GameController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return false;
         }
-        
+
         if (!appState.get('connected')) {
             UI.showNotification('Please connect to League Client first', 'error');
             return false;
         }
-        
+
         return true;
     }
+}
+
+// ==================== ACCOUNT CONTROLLER ====================
+class AccountController {
+  static async loadAccounts() {
+    if (!Environment.isElectron()) return [];
+    try {
+      const result = await window.api.loadAccounts();
+      return result.success ? (result.accounts || []) : [];
+    } catch (error) {
+      console.error('[Account] Load error:', error);
+      return [];
+    }
+  }
+
+  static async refreshAccountTable() {
+    console.log('[Account] Refreshing table...');
+    const accounts = await this.loadAccounts();
+    console.log('[Account] Accounts loaded:', accounts);
+
+    const tbody = document.getElementById('accountTableBody');
+    if (!tbody) {
+      console.error('[Account] Table body not found!');
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    if (accounts.length === 0) {
+      tbody.innerHTML = `
+        <tr class="empty-state">
+          <td colspan="7" style="text-align: center; padding: 60px 20px;">
+            <svg width="64" height="64" viewBox="0 0 20 20" fill="currentColor" style="opacity: 0.3; margin-bottom: 16px;">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+            </svg>
+            <div style="font-size: 16px; font-weight: 500; color: var(--text-primary);">No accounts saved yet</div>
+            <div style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">Click "Add Account" to get started</div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    accounts.forEach((account, index) => {
+      console.log('[Account] Rendering row', index, ':', account);
+      const row = document.createElement('tr');
+
+      // Escape HTML function
+      const escape = (str) => {
+        if (!str) return '—';
+        return String(str).replace(/[&<>"']/g, m => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[m]));
+      };
+
+      // Build row HTML
+      const username = escape(account.username);
+      const riotID = account.riotID ? escape(account.riotID) : '—';
+      const level = account.level || '—';
+      const server = account.server ? escape(account.server) : '—';
+      const rank = account.rank ? escape(account.rank) : 'Unranked';
+      const be = account.be || 0;
+
+      row.innerHTML = `
+        <td style="font-weight: 600; color: var(--accent);">${username}</td>
+        <td style="color: var(--text-secondary);">${riotID}</td>
+        <td style="color: var(--text-primary);">${level}</td>
+        <td style="color: var(--text-primary);">${server}</td>
+        <td style="color: var(--text-primary);">${rank}</td>
+        <td><span class="currency-be">${be} BE</span></td>
+        <td>
+          <button onclick="AccountController.loginAccount('${username.replace(/'/g, "\\'")}', '${escape(account.password).replace(/'/g, "\\'")}').catch(console.error)"
+                  class="btn"
+                  style="margin-right: 6px; padding: 6px 12px; font-size: 12px;">
+            Login
+          </button>
+          <button onclick="AccountController.deleteAccountConfirm('${username.replace(/'/g, "\\'")}')"
+                  class="btn btn-danger"
+                  style="padding: 6px 12px; font-size: 12px;">
+            Delete
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+    console.log('[Account] Table updated with', accounts.length, 'accounts');
+  }
+
+  static async saveAccount(accountData) {
+    if (!Environment.isElectron()) {
+      UI.showNotification('Feature only available in Electron mode', 'error');
+      return false;
+    }
+    try {
+      const result = await window.api.saveAccount(accountData);
+      if (result.success) {
+        UI.showNotification('Account saved!', 'success');
+        await this.refreshAccountTable();
+        return true;
+      } else {
+        UI.showNotification(`Failed: ${result.error}`, 'error');
+        return false;
+      }
+    } catch (error) {
+      console.error('[Account] Save error:', error);
+      UI.showNotification('Failed to save account', 'error');
+      return false;
+    }
+  }
+
+  static async loginAccount(username, password) {
+    if (!Environment.isElectron()) {
+      UI.showNotification('Feature only available in Electron mode', 'error');
+      return;
+    }
+    try {
+      UI.showNotification(`Logging in as ${username}...`, 'info');
+      const result = await window.api.loginAccount(username, password);
+      if (result.success) {
+        UI.showNotification('Riot Client launched!', 'success');
+        setTimeout(() => app.checkLCUStatus(), 10000);
+      } else {
+        UI.showNotification(`Failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('[Account] Login error:', error);
+      UI.showNotification('Failed to login', 'error');
+    }
+  }
+
+  static async deleteAccount(username) {
+    try {
+      const result = await window.api.deleteAccount(username);
+      if (result.success) {
+        UI.showNotification('Account deleted', 'success');
+        await this.refreshAccountTable();
+      } else {
+        UI.showNotification(`Failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('[Account] Delete error:', error);
+      UI.showNotification('Failed to delete account', 'error');
+    }
+  }
+
+  // Dynamic modal
+  static async addNewAccount() {
+    const modal = this.createModal({
+      title: 'Add New Account',
+      body: `
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="newUsername" class="input-field" placeholder="Enter username" autofocus>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="newPassword" class="input-field" placeholder="Enter password">
+        </div>
+        <div class="form-group">
+          <label>Server</label>
+          <select id="newServer" class="input-field">
+            <option value="BR">BR - Brazil</option>
+            <option value="NA">NA - North America</option>
+            <option value="EUW">EUW - Europe West</option>
+            <option value="EUNE">EUNE - Nordic & East</option>
+            <option value="LAN">LAN - Latin America North</option>
+            <option value="LAS">LAS - Latin America South</option>
+          </select>
+        </div>
+      `,
+      buttons: [
+        { text: 'Cancel', style: 'btn', onClick: () => modal.remove() },
+        { text: 'Save', style: 'btn btn-primary', onClick: async () => {
+          const username = document.getElementById('newUsername').value.trim();
+          const password = document.getElementById('newPassword').value;
+          const server = document.getElementById('newServer').value;
+
+          if (!username || !password) {
+            UI.showNotification('Please fill all fields', 'error');
+            return;
+          }
+
+          modal.remove();
+          await this.saveAccount({ username, password, server, riotID: '', level: 0, rank: 'Unranked', be: 0, createdAt: new Date().toISOString() });
+        }}
+      ]
+    });
+  }
+
+  // Confirmation Modal
+  static async deleteAccountConfirm(username) {
+    const modal = this.createModal({
+      title: 'Confirm Delete',
+      body: `<p style="color: var(--text-primary);">Delete account "<strong>${username}</strong>"?<br><span style="color: var(--text-secondary); font-size: 14px;">This cannot be undone.</span></p>`,
+      buttons: [
+        { text: 'Cancel', style: 'btn', onClick: () => modal.remove() },
+        { text: 'Delete', style: 'btn btn-danger', onClick: () => { modal.remove(); this.deleteAccount(username); }}
+      ]
+    });
+  }
+
+  // Modal creation
+  static createModal({ title, body, buttons }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-header"><h2>${title}</h2></div>
+        <div class="modal-body">${body}</div>
+        <div class="modal-footer">${buttons.map((b, i) => `<button id="modalBtn${i}" class="${b.style}">${b.text}</button>`).join('')}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    buttons.forEach((btn, i) => {
+      document.getElementById(`modalBtn${i}`).onclick = btn.onClick;
+    });
+
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+    });
+
+    setTimeout(() => overlay.querySelector('input')?.focus(), 100);
+    return overlay;
+  }
+
+  static async refreshAccountData() {
+    if (!appState.get('connected')) {
+      UI.showNotification('Please connect to League Client first', 'error');
+      return;
+    }
+    await DataLoader.loadAll();
+    UI.showNotification('Data refreshed!', 'success');
+  }
 }
 
 // ==================== SYSTEM CONTROLLER ====================
@@ -1302,19 +1543,19 @@ class SystemController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return;
         }
-        
+
         const btn = document.getElementById('reconnectBtn');
         const text = document.getElementById('reconnectText');
-        
+
         if (!btn || !text) return;
-        
+
         btn.disabled = true;
         btn.classList.add('loading');
         text.textContent = 'Reconnecting...';
-        
+
         try {
             const result = await window.api.refreshData();
-            
+
             if (result.success) {
                 UI.showNotification('Reconnected successfully', 'success');
                 await app.checkLCUStatus();
@@ -1338,10 +1579,10 @@ class SystemController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return;
         }
-        
+
         try {
             const result = await window.api.clearCache();
-            
+
             if (result.success) {
                 UI.showNotification('Cache cleared successfully', 'success');
                 await DataLoader.loadAll();
@@ -1357,7 +1598,7 @@ class SystemController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return;
         }
-        
+
         window.api.openClientLogs();
     }
 
@@ -1366,27 +1607,27 @@ class SystemController {
             UI.showNotification('Feature only available in Electron mode', 'error');
             return;
         }
-        
+
         window.api.openAppData();
     }
 
     static async loadClientInfo() {
         if (!Environment.isElectron()) return;
         if (!appState.get('connected')) return;
-        
+
         try {
             const result = await window.api.getClientInfo();
-            
+
             if (result.success) {
                 const { version, platform, region } = result;
-                
+
                 const updates = {
                     gameVersion: version || 'Unknown',
                     platform: platform || 'Unknown',
                     clientRegion: region?.region || 'Unknown',
                     locale: region?.locale || 'Unknown'
                 };
-                
+
                 Object.entries(updates).forEach(([id, value]) => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = value;
@@ -1403,25 +1644,29 @@ class SystemController {
 class ViewController {
     static switchView(viewName) {
         console.log(`[View] Switching to: ${viewName}`);
-        
+
         appState.set('currentView', viewName);
-        
+
         // Update navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.view === viewName);
         });
-        
+
         // Update content views
         document.querySelectorAll('.view-content').forEach(view => {
             view.classList.toggle('active', view.id === `view-${viewName}`);
         });
-        
+
         // Load data for specific views
         if (viewName === 'settings') {
             SystemController.loadClientInfo();
-            UpdateController.loadInitialStatus(); // ← ADICIONAR ESTA LINHA
+            UpdateController.loadInitialStatus();
             UI.updateConnectionStatus(appState.get('connected'));
         }
+
+        if (viewName === 'accounts') {
+           AccountController.refreshAccountTable();
+         }
     }
 }
 
@@ -1432,36 +1677,36 @@ const PopularSkins = {
     'Ezreal Striker': 81001,
     'Ezreal Frosted': 81002,
     'Ezreal Pulsefire': 81013,
-    
+
     // Yasuo
     'Yasuo High Noon': 157001,
     'Yasuo PROJECT': 157002,
     'Yasuo Spirit Blossom': 157027,
-    
+
     // Ahri
     'Ahri Dynasty': 103002,
     'Ahri K/DA': 103015,
-    
+
     // Jinx
     'Jinx Mafia': 222001,
     'Jinx Star Guardian': 222003,
-    
+
     // Lux
     'Lux Elementalist': 99007,
     'Lux Battle Academia': 99027,
-    
+
     // Zed
     'Zed Shockblade': 238001,
     'Zed PROJECT': 238002,
-    
+
     // Pyke
     'Pyke Blood Moon': 555001,
     'Pyke PROJECT': 555002,
-    
+
     // Akali
     'Akali Blood Moon': 84003,
     'Akali K/DA': 84014,
-    
+
     // Yone
     'Yone Spirit Blossom': 777001,
     'Yone Battle Academia': 777002
@@ -1520,12 +1765,15 @@ window.forceReconnect = () => SystemController.reconnectLCU();
 window.loadClientInfo = () => SystemController.loadClientInfo();
 window.updateConnectionStatus = () => app?.checkLCUStatus();
 
-
 // Update functions
 window.checkForUpdates = () => UpdateController.checkForUpdates();
 window.installUpdate = () => UpdateController.installUpdate();
 window.toggleAutoDownload = () => UpdateController.toggleAutoDownload();
 window.toggleAutoInstall = () => UpdateController.toggleAutoInstall();
+
+// Account Manager exports
+window.addNewAccount = () => AccountController.addNewAccount();
+window.refreshAccountData = () => AccountController.refreshAccountData();
 
 // ==================== DEBUG UTILITIES ====================
 
@@ -1547,7 +1795,6 @@ if (Environment.isDevelopment()) {
             UI.updateSummonerDisplay();
         }
     };
-    
+
     console.log('[Debug] Utilities available via window.debug');
 }
-

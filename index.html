@@ -40,7 +40,7 @@
                 <div class="logo-text">LTK</div>
                 <div class="logo-subtitle">League Toolkit</div>
             </div>
-            
+
             <nav class="nav-menu">
                 <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
                     <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
@@ -48,6 +48,12 @@
                     </svg>
                     Dashboard
                 </div>
+                <div class="nav-item" data-view="accounts" onclick="switchView('accounts')">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                    </svg>
+                    Accounts
+                  </div>
                 <div class="nav-item" data-view="settings" onclick="switchView('settings')">
                     <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
@@ -66,14 +72,14 @@
                         <div class="status-dot" id="statusDot"></div>
                         <span class="status-text" id="statusText">Checking...</span>
                     </div>
-                    
+
                     <button class="btn-reconnect" id="reconnectBtn" onclick="reconnectLCU()">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
                         </svg>
                         <span id="reconnectText">Reconnect</span>
                     </button>
-                    
+
                     <div class="user-info" id="userInfo">
                         <div class="info-item">
                             <span class="info-label">Summoner</span>
@@ -113,7 +119,7 @@
                     <!-- Champ Select Automation -->
                     <div class="section-title">Champ Select Automation</div>
                     <div class="features-grid">
-                       
+
                         <div class="feature-card">
                             <div class="feature-header">
                                 <div class="feature-title">
@@ -267,6 +273,89 @@
                     </div>
                 </div>
 
+                <!-- Account Manager View -->
+                  <div id="view-accounts" class="view-content">
+
+                    <!-- Page Header -->
+                    <div class="page-header">
+                      <h1 class="page-title">
+                        <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 12px; vertical-align: middle;">
+                          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                        </svg>
+                        Account Manager
+                      </h1>
+                      <p class="page-subtitle">Manage and switch between multiple League accounts</p>
+                    </div>
+
+                    <!-- Account Actions Bar -->
+                    <div class="account-actions-bar">
+                        <button class="btn btn-primary" onclick="addNewAccount()">
+                          <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/>
+                        </svg>
+                        Add Account
+                      </button>
+
+                      <button class="btn" onclick="refreshAccountData()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                        Refresh Current
+                      </button>
+
+                      <input type="text" class="input-field" id="accountSearchInput" placeholder="🔍 Search accounts..." style="max-width: 300px; margin: 0;">
+                    </div>
+
+                    <!-- Account Table -->
+                    <div class="account-table-wrapper">
+                      <div class="account-table-container">
+                        <table class="account-table">
+                          <thead>
+                            <tr>
+                              <th>Username</th>
+                              <th>Riot ID</th>
+                              <th>Level</th>
+                              <th>Server</th>
+                              <th>Rank</th>
+                              <th>BE</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody id="accountTableBody">
+                            <!-- Rows dinamicamente adicionados aqui -->
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Info Cards -->
+                    <div class="features-grid" style="margin-top: 24px;">
+                      <div class="feature-card">
+                        <div class="feature-title mb-8">
+                          <span class="feature-icon">💡</span>
+                          Quick Tips
+                        </div>
+                        <div class="feature-description">
+                          • Add accounts to quickly switch between them<br>
+                          • Your password is stored locally<br>
+                          • Click "Login" to automatically launch Riot Client<br>
+                          • Use "Refresh" to update current account stats
+                        </div>
+                      </div>
+
+                      <div class="feature-card">
+                        <div class="feature-title mb-8">
+                          <span class="feature-icon">⚠️</span>
+                          Important Notes
+                        </div>
+                        <div class="feature-description">
+                          • League Client will be closed before switching<br>
+                          • Two-factor authentication must be disabled<br>
+                          • Account switching launches Riot Client only<br>
+                          • Manual login required (automated login coming soon)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 <!-- Settings View -->
                 <div id="view-settings" class="view-content">
                     <!-- About -->
@@ -275,7 +364,7 @@
                         <div class="feature-card feature-card-large">
                             <div class="feature-title mb-8">
                                 <span class="feature-icon"></span>
-                                LTK 
+                                LTK
                             </div>
                             <div class="feature-description" style="line-height: 1.8;">
                                 <strong>Premium League of Legends automation toolkit</strong><br><br>
@@ -486,7 +575,6 @@
         </div>
     </div>
 
-    
     <script src="app.js"></script>
 </body>
 </html>

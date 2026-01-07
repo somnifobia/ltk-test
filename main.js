@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
+const { spawn, execSync } = require('child_process');
 
 // Services
 const LCUService = require('./services/LCUService');
@@ -84,30 +86,30 @@ function createWindow() {
 
 function initializeServices() {
     console.log('[Main] 🚀 Initializing services...');
-    
+
     // Initialize LogService first
     services.log = new LogService();
-    
+
     // Forward logs to renderer
     services.log.on('log', (logEntry) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('log-entry', logEntry);
         }
     });
-    
+
     // Initialize UpdateService
     services.update = new UpdateService();
-    
+
     // Forward update status to renderer
     services.update.on('status-changed', (status) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('update-status', status);
         }
     });
-    
+
     // Start auto-check for updates
     services.update.startAutoCheck();
-    
+
     // Initialize core services
     services.lcu = new LCUService();
     services.summoner = new SummonerService(services.lcu);
@@ -118,7 +120,7 @@ function initializeServices() {
     // LCU Event Handlers
     services.lcu.on('onConnect', async (data) => {
         services.log.success('LCU', 'Connected successfully');
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('lcu-connected', data);
             setTimeout(() => updateAllData(), 1000);
@@ -127,18 +129,18 @@ function initializeServices() {
 
     services.lcu.on('onDisconnect', (data) => {
         services.log.warning('LCU', 'Disconnected', data.reason);
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('lcu-disconnected', data);
         }
-        
+
         services.summoner?.clearCache();
         services.match?.clearCache();
     });
 
     services.lcu.on('onError', (data) => {
         services.log.error('LCU', 'Error occurred', data.error);
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('lcu-error', data);
         }
@@ -147,7 +149,7 @@ function initializeServices() {
     // Start LCU polling
     services.log.info('LCU', 'Starting polling...');
     services.lcu.startPolling(3000);
-    
+
     setTimeout(async () => {
         const connected = await services.lcu.connect();
         services.log.info('LCU', connected ? 'Initial connection successful' : 'Initial connection failed');
@@ -160,10 +162,10 @@ async function updateAllData() {
     try {
         // Get summoner data
         const summonerData = await services.summoner.getAllData();
-        
+
         if (summonerData.isComplete && mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('summoner-data', summonerData);
-            
+
             // Get match history
             if (summonerData.summoner?.puuid) {
                 const matches = await services.match.getMatchHistory(summonerData.summoner.puuid, 20);
@@ -183,18 +185,18 @@ async function updateAllData() {
 
 function cleanupServices() {
     services.log?.info('System', 'Cleaning up services...');
-    
+
     if (updateInterval) {
         clearInterval(updateInterval);
         updateInterval = null;
     }
-    
+
     services.update?.destroy();
     services.lcu?.destroy();
     services.feature?.destroy();
     services.summoner?.clearCache();
     services.match?.clearCache();
-    
+
     services = {};
 }
 
@@ -249,16 +251,16 @@ ipcMain.handle('refresh-data', async () => {
         services.summoner?.clearCache();
         services.match?.clearCache();
         services.lcu.stopPolling();
-        
+
         const connected = await services.lcu.connect();
         services.lcu.startPolling(3000);
-        
+
         if (connected) {
             await updateAllData();
             services.log.success('System', 'Data refreshed');
             return { success: true };
         }
-        
+
         return { success: false, error: 'Could not connect to LCU' };
     } catch (error) {
         services.lcu.startPolling(3000);
@@ -271,7 +273,7 @@ ipcMain.handle('refresh-data', async () => {
 // Auto Accept
 ipcMain.handle('toggle-auto-accept', async (event, enabled) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('AutoAccept', enabled ? 'Enabled' : 'Disabled');
         return await services.feature.toggleAutoAccept(enabled);
@@ -283,7 +285,7 @@ ipcMain.handle('toggle-auto-accept', async (event, enabled) => {
 // Auto Pick
 ipcMain.handle('set-auto-pick', async (event, championName, enabled) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('AutoPick', `${enabled ? 'Enabled' : 'Disabled'} - Champion: ${championName}`);
         return await services.feature.setAutoPick(championName, enabled);
@@ -295,7 +297,7 @@ ipcMain.handle('set-auto-pick', async (event, championName, enabled) => {
 // Auto Ban
 ipcMain.handle('set-auto-ban', async (event, championName, enabled, protectBan = true) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('AutoBan', `${enabled ? 'Enabled' : 'Disabled'} - Champion: ${championName} - Protect: ${protectBan}`);
         return await services.feature.setAutoBan(championName, enabled, protectBan);
@@ -308,7 +310,7 @@ ipcMain.handle('set-auto-ban', async (event, championName, enabled, protectBan =
 // Chat
 ipcMain.handle('toggle-chat', async (event, disconnect) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Chat', disconnect ? 'Disconnected' : 'Connected');
         return await services.feature.toggleChat(disconnect);
@@ -320,7 +322,7 @@ ipcMain.handle('toggle-chat', async (event, disconnect) => {
 // Profile Actions
 ipcMain.handle('change-icon', async (event, iconId) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Profile', `Changing icon to ${iconId}`);
         return await services.feature.changeProfileIcon(iconId);
@@ -331,7 +333,7 @@ ipcMain.handle('change-icon', async (event, iconId) => {
 
 ipcMain.handle('change-background', async (event, skinId) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Profile', `Changing background to ${skinId}`);
         return await services.feature.changeBackground(skinId);
@@ -342,7 +344,7 @@ ipcMain.handle('change-background', async (event, skinId) => {
 
 ipcMain.handle('change-riot-id', async (event, gameName, tagLine) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Profile', `Changing Riot ID to ${gameName}#${tagLine}`);
         return await services.feature.changeRiotId(gameName, tagLine);
@@ -353,7 +355,7 @@ ipcMain.handle('change-riot-id', async (event, gameName, tagLine) => {
 
 ipcMain.handle('change-status', async (event, statusMessage) => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Profile', 'Changing status message');
         return await services.feature.changeStatus(statusMessage);
@@ -364,7 +366,7 @@ ipcMain.handle('change-status', async (event, statusMessage) => {
 
 ipcMain.handle('remove-badges', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Profile', 'Removing badges');
         return await services.feature.removeBadges();
@@ -373,10 +375,139 @@ ipcMain.handle('remove-badges', async () => {
     }
 });
 
+// Account Management
+
+const ACCOUNTS_FILE = path.join(app.getPath('userData'), 'accounts.json');
+
+async function loadAccountsFromFile() {
+  try {
+    const data = await fs.readFile(ACCOUNTS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveAccountsToFile(accounts) {
+  try {
+    await fs.writeFile(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+    return true;
+  } catch (error) {
+    console.error('[Account] Save error:', error);
+    return false;
+  }
+}
+
+ipcMain.handle('load-accounts', async () => {
+  try {
+    const accounts = await loadAccountsFromFile();
+    console.log('[Account] Loaded accounts:', accounts.length);
+    return { success: true, accounts };
+  } catch (error) {
+    console.error('[Account] Load error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('save-account', async (event, accountData) => {
+  try {
+    console.log('[Account] Saving account:', accountData.username);
+    const accounts = await loadAccountsFromFile();
+    const existingIndex = accounts.findIndex(acc => acc.username === accountData.username);
+
+    if (existingIndex >= 0) {
+      accounts[existingIndex] = { ...accounts[existingIndex], ...accountData };
+      console.log('[Account] Updated existing account');
+    } else {
+      accounts.push(accountData);
+      console.log('[Account] Added new account');
+    }
+
+    const saved = await saveAccountsToFile(accounts);
+    console.log('[Account] Save result:', saved);
+    return { success: saved };
+  } catch (error) {
+    console.error('[Account] Save error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-account', async (event, username) => {
+  try {
+    console.log('[Account] Deleting account:', username);
+    const accounts = await loadAccountsFromFile();
+    const filtered = accounts.filter(acc => acc.username !== username);
+    const saved = await saveAccountsToFile(filtered);
+    console.log('[Account] Delete result:', saved);
+    return { success: saved };
+  } catch (error) {
+    console.error('[Account] Delete error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('login-account', async (event, username, password) => {
+  try {
+    console.log('[Account] Login attempt:', username);
+
+    // Kill existing League processes
+    if (process.platform === 'win32') {
+      try {
+        execSync('taskkill /F /IM "LeagueClient.exe" /T', { stdio: 'ignore' });
+        execSync('taskkill /F /IM "RiotClientServices.exe" /T', { stdio: 'ignore' });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (e) {
+        console.log('[Account] No processes to kill');
+      }
+    }
+
+    // Find Riot Client path
+    const riotPaths = [
+      'C:\\Riot Games\\Riot Client\\RiotClientServices.exe',
+      path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Riot Games', 'Riot Client', 'RiotClientServices.exe'),
+      path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Riot Games', 'Riot Client', 'RiotClientServices.exe')
+    ];
+
+    let riotPath = null;
+    for (const testPath of riotPaths) {
+      try {
+        await fs.access(testPath);
+        riotPath = testPath;
+        console.log('[Account] Found Riot Client at:', riotPath);
+        break;
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (!riotPath) {
+      throw new Error('Riot Client not found');
+    }
+
+    // Launch Riot Client
+    const proc = spawn(riotPath, [
+      '--launch-product=league_of_legends',
+      '--launch-patchline=live'
+    ], {
+      detached: true,
+      stdio: 'ignore'
+    });
+
+    proc.unref();
+    console.log('[Account] Riot Client launched');
+
+    return { success: true, message: 'Riot Client launched' };
+  } catch (error) {
+    console.error('[Account] Login error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+
 // Game Actions
 ipcMain.handle('reveal-lobby', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         const result = await services.feature.revealLobby();
         if (result.success && result.url) {
@@ -391,7 +522,7 @@ ipcMain.handle('reveal-lobby', async () => {
 
 ipcMain.handle('dodge', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.warning('Feature', 'Game dodged');
         return await services.feature.dodgeGame();
@@ -402,7 +533,7 @@ ipcMain.handle('dodge', async () => {
 
 ipcMain.handle('remove-friends', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         const result = await services.feature.removeAllFriends();
         services.log.warning('Feature', `Removed ${result.removed || 0} friends`);
@@ -414,7 +545,7 @@ ipcMain.handle('remove-friends', async () => {
 
 ipcMain.handle('restart-client', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.log.info('Feature', 'Restarting client');
         return await services.feature.restartClient();
@@ -426,7 +557,7 @@ ipcMain.handle('restart-client', async () => {
 // Feature States
 ipcMain.handle('get-feature-states', async () => {
     if (!services.feature) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         return { success: true, states: services.feature.getFeatureStates() };
     } catch (error) {
@@ -531,14 +662,14 @@ ipcMain.handle('get-client-info', async () => {
     if (!services.lcu?.isConnected) {
         return { success: false, error: 'LCU not connected' };
     }
-    
+
     try {
         const responses = await Promise.allSettled([
             services.lcu.get('/lol-patch/v1/game-version'),
             services.lcu.get('/lol-platform-config/v1/namespaces/LoginDataPacket'),
             services.lcu.get('/riotclient/region-locale')
         ]);
-        
+
         return {
             success: true,
             version: responses[0].status === 'fulfilled' ? responses[0].value.data : 'Unknown',
@@ -574,7 +705,7 @@ ipcMain.handle('clear-cache', async () => {
 // Check for Updates
 ipcMain.handle('check-for-updates', async () => {
     if (!services.update) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         await services.update.checkForUpdates();
         return { success: true };
@@ -586,7 +717,7 @@ ipcMain.handle('check-for-updates', async () => {
 // Download Update
 ipcMain.handle('download-update', async () => {
     if (!services.update) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         await services.update.downloadUpdate();
         return { success: true };
@@ -598,7 +729,7 @@ ipcMain.handle('download-update', async () => {
 // Quit and Install
 ipcMain.handle('quit-and-install', async () => {
     if (!services.update) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.update.quitAndInstall();
         return { success: true };
@@ -610,7 +741,7 @@ ipcMain.handle('quit-and-install', async () => {
 // Get Update Status
 ipcMain.handle('get-update-status', async () => {
     if (!services.update) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         const status = services.update.getStatus();
         return { success: true, status };
@@ -622,7 +753,7 @@ ipcMain.handle('get-update-status', async () => {
 // Set Update Config
 ipcMain.handle('set-update-config', async (event, config) => {
     if (!services.update) return { success: false, error: 'Service not initialized' };
-    
+
     try {
         services.update.setConfig(config);
         return { success: true };
